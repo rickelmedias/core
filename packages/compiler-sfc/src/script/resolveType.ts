@@ -40,6 +40,7 @@ import { parse as babelParse } from '@babel/parser'
 import { parse } from '../parse'
 import { createCache } from '../cache'
 import type TS from 'typescript'
+import { type TSSyncModule, createTSFromSyncAPI } from './tsSyncApi'
 import { dirname, extname, join } from 'path'
 import { minimatch as isMatch } from 'minimatch'
 import * as process from 'process'
@@ -892,8 +893,9 @@ let loadTS: (() => typeof TS) | undefined
  */
 export function registerTS(_loadTS: () => typeof TS): void {
   loadTS = () => {
+    let loaded: typeof TS
     try {
-      return _loadTS()
+      loaded = _loadTS()
     } catch (err: any) {
       if (
         typeof err.message === 'string' &&
@@ -909,6 +911,18 @@ export function registerTS(_loadTS: () => typeof TS): void {
         )
       }
     }
+    if (!__CJS__ || loaded.sys) {
+      return loaded
+    }
+    // TypeScript 7+ (#15997): the API is in `typescript/sync`, its root export
+    // only carries version metadata
+    if ('API' in loaded) {
+      return createTSFromSyncAPI(loaded as unknown as TSSyncModule)
+    }
+    throw new Error(
+      `Failed to load the TypeScript ${loaded.version} API for resolving imported types. ` +
+        `TypeScript 7 provides it through "typescript/sync" (7.1 or later).`,
+    )
   }
 }
 

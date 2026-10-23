@@ -53,6 +53,7 @@
     // manually bumping
     'node',
     'typescript',
+    'typescript-7',
 
     // ESM only
     'estree-walker',
